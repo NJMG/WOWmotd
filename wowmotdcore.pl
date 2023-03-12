@@ -328,7 +328,7 @@ sub scroller {
     }
 }
 
-sub scrollscrolldelay {
+sub scrolldelay {
     my ($val) = @_;
 
     # $val = int($val);s
