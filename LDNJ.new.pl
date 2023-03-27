@@ -22,7 +22,7 @@ require $dir . $sep ."wowmotdcore.pl";
 #####################################################
 #####################################################
 #####################################################
-# template in the same directory of the script( same basename with extension .tpl ):
+# template in the same directory of the script
 my $tpl = $dir . $sep . "LDNJ122.new4.utf8ans";
 
 # if ($wchar < 116 ) {
