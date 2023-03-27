@@ -34,7 +34,8 @@ if ( $ENV{COLUMNS} ) {
 }
 else {
     use Term::ReadKey;
-    # ( our $wchar, our $hchar, our $wpixels, our $hpixels ) = GetTerminalSize();
+
+   # ( our $wchar, our $hchar, our $wpixels, our $hpixels ) = GetTerminalSize();
     ( $wchar, $hchar, $wpixels, $hpixels ) = GetTerminalSize();
 }
 
@@ -47,6 +48,7 @@ our @Alfinn;
 our @Ahexpanse;
 our $hexpanse = 0;
 our $lmax;
+our $GTmpLen = 0;
 
 # default values
 our %opts = (
@@ -58,7 +60,7 @@ our %opts = (
     MaxWs    => 0,
     MaxLines => 0,
 
-    ClearScreen => 1,
+    ClearScreen => 0,
 
     # ScrollTimeSec => 0,
     ScrollDurationSec => 0,
@@ -68,9 +70,11 @@ our %opts = (
     # fixedCol => 0,
     TplColumns => 0,
 
-    Delim_Scalar   => ':',
-    Delim_FillChar => '*',
-    Delim_FillLine => '%',
+    Delim_Scalar      => ':',
+    Delim_FillChar    => '*',
+    Delim_FillLine    => '%',
+    Delim_RepeatWLine => '+',
+    Delim_EOL         => '$',
 );
 
 #####################################################
@@ -83,7 +87,8 @@ sub runnew {
         die "run() need the template file";
     }
     if ( -e $file ) {
-        open( my $info, '<:encoding(UTF-8)', $file ) or die "Could not open $file: $!";
+        open( my $info, '<:encoding(UTF-8)', $file )
+          or die "Could not open $file: $!";
         @Alines = <$info>;
         close($info);
         linesnewread(@Alines);
@@ -100,7 +105,8 @@ sub runwall {
         die "run() need the wall template file";
     }
     if ( -e $wall ) {
-        open( my $info, '<:encoding(UTF-8)', $wall ) or die "Could not open $wall: $!";
+        open( my $info, '<:encoding(UTF-8)', $wall )
+          or die "Could not open $wall: $!";
         @Alines = <$info>;
         close($info);
 
@@ -110,7 +116,8 @@ sub runwall {
         die "Could not find: $wall: $!";
     }
     if ( $tpl && -e $tpl ) {
-        open( my $info, '<:encoding(UTF-8)', $tpl ) or die "Could not open $tpl: $!";
+        open( my $info, '<:encoding(UTF-8)', $tpl )
+          or die "Could not open $tpl: $!";
         @Alines2 = <$info>;
         close($info);
 
@@ -140,7 +147,9 @@ sub linesnewread {
             print "Maxlines: ", $opts{'MaxLines'}, "\n";
         }
 
-        if ( $opts{'ScrollDurationSec'} && ( scalar @alines > $hchar ) ) { $opts{'MaxLines'} = 0; }
+        if ( $opts{'ScrollDurationSec'} && ( scalar @alines > $hchar ) ) {
+            $opts{'MaxLines'} = 0;
+        }
 
         if ( $opts{'MaxLines'} ) {
             $lmax = $opts{'MaxLines'};
@@ -151,16 +160,21 @@ sub linesnewread {
         $tplCol = $opts{'TplColumns'};
         foreach my $i ( 0 .. $#alines ) {
             my $li = $alines[$i];
-            if ($li) {
-                $li =~ s/[\r\n]+$//;       # remove line endings \n ( & win line endings \r\n)
-                if ( $li !~ /^\s*$/ ) {    # if not only spaces:
-                    $lilen = length( delcolors($li) );
-                    if ( $tplCol and ( $tplCol > $lilen ) ) {
-                        $li = str_w_spaces( $li, $tplCol, 1 );
-                    }
+
+            # if ($li) {
+            $li =~
+              s/[\r\n]+$//;  # remove line endings \n ( & win line endings \r\n)
+            if ( $li !~ /^\s*$/ ) {    # if not only spaces:
+                $lilen = length( delcolors($li) );
+                if ( $tplCol and ( $tplCol > $lilen ) ) {
+                    $li = str_w_spaces( $li, $tplCol, 1 );
                 }
             }
+
             genarr( $li, $i );
+
+            # }
+
         }
 
         if ($hexpanse) {
@@ -189,7 +203,8 @@ sub lineswallread {
         my $li = $alines[$i];
         $li //= '';
         if ($li) {
-            $li =~ s/[\r\n]+$//;    # remove line endings \n ( & win line endings \r\n)
+            $li =~
+              s/[\r\n]+$//;  # remove line endings \n ( & win line endings \r\n)
         }
         genlinewall($li);
     }
@@ -198,7 +213,7 @@ sub lineswallread {
 ###########################################################################################
 sub genlinewall {
     my ($li) = @_;
-    my @ecolors = hecolors($li);
+    my @ecolors = hecolors( $li, $wchar );
     my $linecut;
     if (@ecolors) {
         my $add = $wchar - int( $ecolors[-1][0] );
@@ -211,7 +226,7 @@ sub genlinewall {
 }
 
 sub hecolors {
-    my ($li) = @_;
+    my ( $li, $charmax ) = @_;
     my @ecolors;
     my $totlength = 0;
     my $realpos   = 0;
@@ -222,7 +237,7 @@ sub hecolors {
         $realpos = $cpos - $totlength + 0;
 
         # stop while si $realpos > $wchar
-        last if ( $realpos >= $wchar );
+        last if ( $realpos >= $charmax );
 
         $ecolors[ $count++ ] = [ $realpos, $cpos, length($1), $1 ];
 
@@ -263,9 +278,9 @@ sub testoptskeys {
 
     # given (substr($str, 0, 2)) {
     given ($key) {
-        when ('AC')  { $opts{'Align'} = 'center'; }
-        when ('AL')  { $opts{'Align'} = 'left'; }
-        when ('AR')  { $opts{'Align'} = 'right'; }
+        when ('AC') { $opts{'Align'} = 'center'; }
+        when ('AL') { $opts{'Align'} = 'left'; }
+        when ('AR') { $opts{'Align'} = 'right'; }
         when ('CHR') { getchartofill($val); }
         when ('BGC') { bgcolortofill($val); }
         when ('FGC') { fgcolortofill($val); }
@@ -366,35 +381,56 @@ sub genarr {
         #		$match2 = :
         #		$match3 = V1
         if ($$match2) {
-            if ( not defined $$match3 || $$match3 eq '' ) { $$match3 = ' '; }    # '<*>' is like fill with spaces
+            if ( not defined $$match3 || $$match3 eq '' ) {
+                $$match3 = ' ';
+            }    # '<*>' is like fill with spaces
             given ($$match2) {
 
                 #### when (':') { push @Vitems, [$$match1, $$match3]; } # <:V1>
-                when ( $opts{'Delim_Scalar'} ) { push @Vitems, [ $$match1, $$match3 ]; }    # <:V1>
+                when ( $opts{'Delim_Scalar'} ) {
+                    push @Vitems, [ $$match1, $$match3 ];
+                }    # <:V1>
 
                 # '*' fill with chars or spaces
                 #### when ('*') { push @Fitems, [1, $$match1, $$match3]; } # [ 1, <*█>, █ ]
-                when ( $opts{'Delim_FillChar'} ) { push @Fitems, [ 1, $$match1, $$match3 ]; }    # [ 1, <*█>, █ ]
+                when ( $opts{'Delim_FillChar'} ) {
+                    push @Fitems, [ 1, $$match1, $$match3 ];
+                }    # [ 1, <*█>, █ ]
 
                 # '@' fill with void space ( for tpl incrustation with runwall)
-                when ('@') { push @Fitems, [ 0, $$match1, $$match3 ]; }
+                # when ('@') { push @Fitems, [ 0, $$match1, $$match3 ]; }
 
                 #### when ('%') { push @Litems, [1, $$match1]; }
-                when ( $opts{'Delim_FillLine'} ) { push @Litems, [ 1, $$match1 ]; }
-
-                when ('-') { push @Litems, [ 0, $$match1 ]; }
+                # when ('-') { push @Litems, [ 0, $$match1 ]; }
+                when ( $opts{'Delim_FillLine'} ) {
+                    push @Litems, [ 1, $$match1 ];
+                }
+                when ( $opts{'Delim_RepeatWLine'} ) {
+                    push @Litems, [ 2, $$match1 ];
+                }
+                when ( $opts{'Delim_EOL'} ) { push @Litems, [ 3, $$match1 ]; }
             }
         }
     }
 
-    # 1 remove Litems tag(s) from string:
+    # 1 SCALAR ref process first!
+    if (@Vitems) {
+        $li = sgenvars( $li, \@Vitems );
+    }
+
+    # 2.1 remove Litems tag(s) from string
     if (@Litems) {
+
+        # 1 remove Litems tag(s) from string:
         $li = remlitems( $li, \@Litems );
     }
 
-    # 2 SCALAR ref process first!
-    if (@Vitems) {
-        $li = sgenvars( $li, \@Vitems );
+    # 2.2 check line lenght :
+    $li = checkwarnlenght( $li, $i, \@Fitems );
+
+    # 2.3 repeatwline if Litems =  Delim_RepeatWLine :
+    if ( @Litems and $Litems[0][0] == 2 ) {
+        $li = repeatwline( $li, \@Litems );
     }
 
     # 3 FILL process:
@@ -402,9 +438,9 @@ sub genarr {
         $li = sgenfill( $li, \@Fitems );
     }
 
-    # line expance WORK
-    # last:
-    if (@Litems) {
+    # 4 line expance
+    # if Delim_FillLine :
+    if ( @Litems and $Litems[0][0] == 1 ) {
 
         # $li = sgenhline($li,\@Litems); # WORK
         # $Alfinn[$i] = [ $Litems[0][0] , $li];
@@ -417,6 +453,77 @@ sub genarr {
     }
 }
 #####################################################
+
+sub checkwarnlenght {
+    my ( $li, $i, $Fitems_aref ) = @_;
+    my $linb;
+
+    # if is 100% whitespace:
+    if ( $li =~ /^\s*$/ ) {
+        $li = '';
+        return $li;
+    }
+
+    my $sa = scalar @$Fitems_aref + 0;
+
+    $GTmpLen = length( delcolors($li) );
+
+    my $tmpLen = $GTmpLen - ( $sa * 2 );
+
+    if ( $tmpLen > $wchar ) {
+        $linb = $i + 1;
+
+        # $li = "Error: Line bigger than terminal size";
+        die
+"Error: in Line $linb ($GTmpLen char) bigger than terminal size: $wchar !";
+    }
+
+    return $li;
+
+}
+
+# a Tester
+sub repeatwline {
+    my ( $li, $Litems_aref ) = @_;
+
+    # my $lilen = length( delcolors($li) );
+    my $lilen = $GTmpLen;
+    my $linecut;
+    my $coeff;
+    my $addnbchars;
+
+    # print "\$lilen: ", $lilen, "\n";
+    if ( $lilen < $wchar ) {
+
+        $addnbchars = $wchar - $lilen;
+
+        # print "\$addnbchars: ", $addnbchars, "\n";
+
+        if ( $addnbchars > $lilen ) {
+            $coeff = int( $addnbchars / $lilen );
+
+            # print "\$coeff: ", $coeff, "\n";
+            $li         = $li x ( $coeff + 1 );
+            $lilen      = length( delcolors($li) );
+            $addnbchars = $wchar - $lilen;
+
+            # print "\$addnbchars: ", $addnbchars, "\n";
+        }
+
+        my @ecolors = hecolors( $li, $addnbchars );
+        if (@ecolors) {
+            my $add = $addnbchars - int( $ecolors[-1][0] );
+            $linecut = substr( $li, 0, $ecolors[-1][1] + $add );
+        }
+        else {
+            $linecut = substr( $li, 0, $addnbchars );
+        }
+
+        $li = $li . $linecut;
+
+    }
+    return $li;
+}
 
 sub prosaexp {
     my ( $hex, $nbalines ) = @_;
@@ -574,7 +681,10 @@ sub sgenalign {
             when ('center') {
                 $modulo = $lentoWFill % 2;
                 if ( $modulo > 0 ) {
-                    $li = ' ' x $lentoWFilldiv2 . $li . ' ' x ( $lentoWFilldiv2 + 1 );
+                    $li =
+                        ' ' x $lentoWFilldiv2
+                      . $li
+                      . ' ' x ( $lentoWFilldiv2 + 1 );
                 }
                 else {
                     $li = ' ' x $lentoWFilldiv2 . $li . ' ' x $lentoWFilldiv2;
@@ -589,9 +699,15 @@ sub sgenalign {
 
 sub remlitems {
     my ( $li, $Litems_aref ) = @_;
+    my $tag;
 
     for my $row (@$Litems_aref) {
-        $li = str_replace( @{$row}[1], '', $li );
+        $tag = quotemeta "@{$row}[1]";
+
+        # remove tag and all spaces after if any:
+        # $li =~ s/$tag\s*?$//;
+        # remove tag and all chars after if any:
+        $li =~ s/$tag.*?$//;
     }
     return $li;
 }
@@ -607,7 +723,8 @@ sub sgenvars {
         if ( ref($$var) eq 'ARRAY' ) {
             $$var = formavar( $$var, $lenforvars );
         }
-        $li = str_replace( @{$row}[0], str_w_spaces( $$var, $lenforvars ), $li );
+        $li =
+          str_replace( @{$row}[0], str_w_spaces( $$var, $lenforvars ), $li );
     }
     return $li;
 }
@@ -676,12 +793,15 @@ sub str_replace {
     $replace_this //= '';
     $with_this    //= '';
     $string       //= '';
-    my $length = length($string);
+    my $strlen = length($string);
     my $target = length($replace_this);
 
-    for ( my $i = 0; $i < $length - $target + 1; $i++ ) {
+    for ( my $i = 0 ; $i < $strlen - $target + 1 ; $i++ ) {
         if ( substr( $string, $i, $target ) eq $replace_this ) {
-            $string = substr( $string, 0, $i ) . $with_this . substr( $string, $i + $target );
+            $string =
+                substr( $string, 0, $i )
+              . $with_this
+              . substr( $string, $i + $target );
             return $string;    # Comment this if you want a global replace
         }
     }
@@ -693,12 +813,14 @@ sub str_w_spaces {
     # my $this_str = shift; # $1 ( str )
     # my $total_length = shift; # $2 ( length to expect )
     my ( $this_str, $total_length, $nocolor ) = @_;
+    my $lenstr;
     $this_str     //= '';
     $total_length //= 0;
     $nocolor      //= 0;
-    my $lenstr = length($this_str);
 
-    if ($nocolor) { $lenstr = length( delcolors($this_str) ); }
+    $nocolor
+      ? ( $lenstr = length( delcolors($this_str) ) )
+      : ( $lenstr = length($this_str) );
 
     my $addlength = $total_length - $lenstr;
     if ( $addlength > 0 ) {
@@ -767,16 +889,24 @@ sub formavar {
     }
 
     if ( $sizerray == 3 ) {
-        $delim      = substr( delcolors( $array_ref->[1] ), 0, 1 );
+        $delim = substr( delcolors( $array_ref->[1] ), 0, 1 );
         $delimcolor = getcolors( $array_ref->[1] );
 
         # if ($delimcolor) { print "delimcolor:$delimcolor" ;}
-        $lensize = $lenforvars - ( length( delcolors( $array_ref->[0] ) ) + length( delcolors( $array_ref->[2] ) ) );
+        $lensize =
+          $lenforvars -
+          (
+            length( delcolors( $array_ref->[0] ) ) +
+              length( delcolors( $array_ref->[2] ) ) );
         if ( $lensize < 0 ) {
             $lensize = 0;
         }
         $delimcolor //= "";
-        return $array_ref->[0] . $delimcolor . $delim x $lensize . $array_ref->[2];
+        return
+            $array_ref->[0]
+          . $delimcolor
+          . $delim x $lensize
+          . $array_ref->[2];
     }
 
     # return scalar @$array_ref;
@@ -790,11 +920,12 @@ sub getfuptime {
 
     # my @parts = gmtime($uptime);
     #     0    1    2     3     4    5     6     7
-    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday ) = gmtime($uptime);
-    if ($yday)            { $prettytime .= "$yday" . 'd '; }
+    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday ) =
+      gmtime($uptime);
+    if ($yday) { $prettytime .= "$yday" . 'd '; }
     if ( $yday || $hour ) { $prettytime .= "$hour" . 'h '; }
     if ( $hour || $min )  { $prettytime .= "$min" . 'm '; }
-    if ( !$hour )         { $prettytime .= "$sec" . 's'; }
+    if ( !$hour ) { $prettytime .= "$sec" . 's'; }
 
     return $prettytime;
 }
@@ -806,7 +937,7 @@ sub genfigletaref {
     my $fgc;
     my @afgc;
     if ($cmd) {
-        $fgc  = qx($cmd);
+        $fgc = qx($cmd);
         @afgc = split( "\n", "$fgc" );
 
         # return ref array
