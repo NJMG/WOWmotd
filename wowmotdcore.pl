@@ -6,7 +6,7 @@ no strict 'refs';    # else Can't use string ("value") as a SCALAR ref
 
 # use feature "switch"; # remplacer par du pure perl ( for; foreach)
 #use v5.14; # like use feature "switch , given ,then ";
-#no warnings 'experimental'; # given, then is experimental
+#no warnings 'experimental'; # given, when is experimental
 
 
 use Time::HiRes qw(usleep nanosleep);
