@@ -1,12 +1,17 @@
 #!/usr/bin/env perl
+
 use strict;
 use warnings;
 no strict 'refs';    # else Can't use string ("value") as a SCALAR ref
-no warnings 'experimental';
-use feature "switch";
+
+# use feature "switch"; # remplacer par du pure perl ( for; foreach)
+#use v5.14; # like use feature "switch , given ,then ";
+#no warnings 'experimental'; # given, then is experimental
+
+
 use Time::HiRes qw(usleep nanosleep);
 use Scalar::Util qw(looks_like_number);
-use utf8;
+##use utf8;
 ## Solve Perl "Wide Character in Print": no warnings 'utf8' or (and) use  open ":std", ":encoding(UTF-8)";
 no warnings 'utf8';
 use open ":std", ":encoding(UTF-8)";
@@ -277,20 +282,41 @@ sub testoptskeys {
     my ( $key, $val ) = split( /:/, $str );
 
     # given (substr($str, 0, 2)) {
-    given ($key) {
-        when ('AC') { $opts{'Align'} = 'center'; }
-        when ('AL') { $opts{'Align'} = 'left'; }
-        when ('AR') { $opts{'Align'} = 'right'; }
-        when ('CHR') { getchartofill($val); }
-        when ('BGC') { bgcolortofill($val); }
-        when ('FGC') { fgcolortofill($val); }
-        when ('ML')  { maxlines($val); }
-        when ('SC')  { scroller($val); }
-        when ('SD')  { scrolldelay($val); }
-        when ('CLR') { clearer($val); }
-        when ('TC')  { setcolums($val); }
-    }
+    # given ($key) {
+        # when ('AC') { $opts{'Align'} = 'center'; }
+        # when ('AL') { $opts{'Align'} = 'left'; }
+        # when ('AR') { $opts{'Align'} = 'right'; }
+        # when ('CHR') { getchartofill($val); }
+        # when ('BGC') { bgcolortofill($val); }
+        # when ('FGC') { fgcolortofill($val); }
+        # when ('ML')  { maxlines($val); }
+        # when ('SC')  { scroller($val); }
+        # when ('SD')  { scrolldelay($val); }
+        # when ('CLR') { clearer($val); }
+        # when ('TC')  { setcolums($val); }
+    # }
+
+	for ($key) {
+		if ($key eq 'AC') { $opts{'Align'} = 'center'; last; }
+		if ($key eq 'AL') { $opts{'Align'} = 'left'; last; }
+		if ($key eq 'AR') { $opts{'Align'} = 'right'; last; }
+		if ($key eq 'CHR') { getchartofill($val); last; }
+		if ($key eq 'BGC') { bgcolortofill($val); last; }
+		if ($key eq 'FGC') { fgcolortofill($val); last; }
+		if ($key eq 'ML') { maxlines($val); last; }
+		if ($key eq 'SC') { scroller($val); last; }
+		if ($key eq 'SD') { scrolldelay($val); last; }
+		if ($key eq 'CLR') { clearer($val); last; }
+		if ($key eq 'TC') { setcolums($val); last; }
+	}
+
 }
+
+sub isnumb {
+    my ($val) = @_;
+    if ( looks_like_number($val) ) { return 1; }
+}
+
 
 sub setcolums {
     my ($val) = @_;
@@ -314,10 +340,7 @@ sub fgcolortofill {
     $opts{'FGColor'} = $val;
 }
 
-sub isnumb {
-    my ($val) = @_;
-    if ( looks_like_number($val) ) { return 1; }
-}
+
 
 sub maxlines {
     my ($val) = @_;
@@ -371,6 +394,7 @@ sub genarr {
     my @Vitems;
     my @Fitems;
     my @Litems;
+    my $lilen;
 
     while ( $li =~ /(<(.)([^<]*?)>)+?/g ) {
         my $match1 = \$1;
@@ -384,32 +408,54 @@ sub genarr {
             if ( not defined $$match3 || $$match3 eq '' ) {
                 $$match3 = ' ';
             }    # '<*>' is like fill with spaces
-            given ($$match2) {
+            # given ($$match2) {
 
-                #### when (':') { push @Vitems, [$$match1, $$match3]; } # <:V1>
-                when ( $opts{'Delim_Scalar'} ) {
-                    push @Vitems, [ $$match1, $$match3 ];
-                }    # <:V1>
+                # #### when (':') { push @Vitems, [$$match1, $$match3]; } # <:V1>
+                # when ( $opts{'Delim_Scalar'} ) {
+                    # push @Vitems, [ $$match1, $$match3 ];
+                # }    # <:V1>
 
-                # '*' fill with chars or spaces
-                #### when ('*') { push @Fitems, [1, $$match1, $$match3]; } # [ 1, <*█>, █ ]
-                when ( $opts{'Delim_FillChar'} ) {
-                    push @Fitems, [ 1, $$match1, $$match3 ];
-                }    # [ 1, <*█>, █ ]
+                # # '*' fill with chars or spaces
+                # #### when ('*') { push @Fitems, [1, $$match1, $$match3]; } # [ 1, <*█>, █ ]
+                # when ( $opts{'Delim_FillChar'} ) {
+                    # push @Fitems, [ 1, $$match1, $$match3 ];
+                # }    # [ 1, <*█>, █ ]
 
-                # '@' fill with void space ( for tpl incrustation with runwall)
-                # when ('@') { push @Fitems, [ 0, $$match1, $$match3 ]; }
+                # # '@' fill with void space ( for tpl incrustation with runwall)
+                # # when ('@') { push @Fitems, [ 0, $$match1, $$match3 ]; }
 
-                #### when ('%') { push @Litems, [1, $$match1]; }
-                # when ('-') { push @Litems, [ 0, $$match1 ]; }
-                when ( $opts{'Delim_FillLine'} ) {
-                    push @Litems, [ 1, $$match1 ];
+                # #### when ('%') { push @Litems, [1, $$match1]; }
+                # # when ('-') { push @Litems, [ 0, $$match1 ]; }
+                # when ( $opts{'Delim_FillLine'} ) {
+                    # push @Litems, [ 1, $$match1 ];
+                # }
+                # when ( $opts{'Delim_RepeatWLine'} ) {
+                    # push @Litems, [ 2, $$match1 ];
+                # }
+                # when ( $opts{'Delim_EOL'} ) { push @Litems, [ 3, $$match1 ]; }
+            # }
+
+			for ($$match2) {
+				if ( $$match2 eq $opts{'Delim_Scalar'}) {
+                    push @Vitems, [ $$match1, $$match3 ]; last;
+                } # <:V1>
+
+				if ($$match2 eq $opts{'Delim_FillChar'}) {
+                    push @Fitems, [ 1, $$match1, $$match3 ]; last;
+                } # [ 1, <*█>, █ ]
+
+				if ($$match2 eq $opts{'Delim_FillLine'}) {
+					push @Litems, [ 1, $$match1 ]; last;
                 }
-                when ( $opts{'Delim_RepeatWLine'} ) {
-                    push @Litems, [ 2, $$match1 ];
-                }
-                when ( $opts{'Delim_EOL'} ) { push @Litems, [ 3, $$match1 ]; }
-            }
+
+				if ($$match2 eq $opts{'Delim_RepeatWLine'}) {
+					push @Litems, [ 2, $$match1 ]; last;
+				}
+
+				if ($$match2 eq $opts{'Delim_EOL'}) {
+					push @Litems, [ 3, $$match1 ]; last;
+				}
+			}
         }
     }
 
@@ -438,6 +484,10 @@ sub genarr {
         $li = sgenfill( $li, \@Fitems );
     }
 
+    # recalculate $lilen
+    $lilen = length( delcolors($li) );
+
+
     # 4 line expance
     # if Delim_FillLine :
     if ( @Litems and $Litems[0][0] == 1 ) {
@@ -445,11 +495,15 @@ sub genarr {
         # $li = sgenhline($li,\@Litems); # WORK
         # $Alfinn[$i] = [ $Litems[0][0] , $li];
         ##$Alfinn[$i] = [$li];
-        $Alfinn[$i] = { EXL => $li };
+        ##$Alfinn[$i] = { EXL => $li };
+
+
+        # array $Alfinn[$i] = [$line, $linelength, $expanse]:
+        $Alfinn[$i] = [$li, $lilen, 1];
         ++$hexpanse;
     }
     else {
-        $Alfinn[$i] = $li;
+        $Alfinn[$i] = [$li, $lilen, 0];
     }
 }
 #####################################################
@@ -465,7 +519,7 @@ sub checkwarnlenght {
     }
 
     my $sa = scalar @$Fitems_aref + 0;
-
+    # $GTmpLen variable globale
     $GTmpLen = length( delcolors($li) );
 
     my $tmpLen = $GTmpLen - ( $sa * 2 );
@@ -491,6 +545,8 @@ sub repeatwline {
     my $linecut;
     my $coeff;
     my $addnbchars;
+    my $add;
+    my $addcut;
 
     # print "\$lilen: ", $lilen, "\n";
     if ( $lilen < $wchar ) {
@@ -504,7 +560,8 @@ sub repeatwline {
 
             # print "\$coeff: ", $coeff, "\n";
             $li         = $li x ( $coeff + 1 );
-            $lilen      = length( delcolors($li) );
+            # $lilen      = length( delcolors($li) );
+            $lilen      = $GTmpLen x ( $coeff + 1 );
             $addnbchars = $wchar - $lilen;
 
             # print "\$addnbchars: ", $addnbchars, "\n";
@@ -512,14 +569,19 @@ sub repeatwline {
 
         my @ecolors = hecolors( $li, $addnbchars );
         if (@ecolors) {
-            my $add = $addnbchars - int( $ecolors[-1][0] );
+            $add = $addnbchars - int( $ecolors[-1][0] );
+            $addcut = $ecolors[-1][1] + $add;
             $linecut = substr( $li, 0, $ecolors[-1][1] + $add );
         }
         else {
+            $addcut = $addnbchars;
             $linecut = substr( $li, 0, $addnbchars );
         }
 
         $li = $li . $linecut;
+        # update $GTmpLen:
+        $GTmpLen = $lilen + $addcut + 0;
+
 
     }
     return $li;
@@ -558,18 +620,25 @@ sub genarline {
 
     if ($hexpanse) {
         foreach my $i ( 0 .. $#Alfinn ) {
-            if ( ref( $Alfinn[$i] ) eq 'ARRAY' ) {
-                $exp = shift @Ahexpanse;
-                $li  = sgenalign( $Alfinn[$i][0] ) . "\n";
+            # if ( ref( $Alfinn[$i] ) eq 'ARRAY' ) {
+            #     $exp = shift @Ahexpanse;
+            #     $li  = sgenalign( $Alfinn[$i][0] ) . "\n";
+            # }
+
+
+            # if ( ref( $Alfinn[$i] ) eq 'HASH' ) {
+            #     $exp = shift @Ahexpanse;
+            #     $li  = sgenalign( $Alfinn[$i]{EXL} ) . "\n";
+            # }
+            # else {
+            #     $exp = 1;
+            #     $li  = sgenalign( $Alfinn[$i] ) . "\n";
+            # }
+            $exp = 1;
+            if ( $Alfinn[$i][2] == 1 ) {
+                  $exp = shift @Ahexpanse;
             }
-            if ( ref( $Alfinn[$i] ) eq 'HASH' ) {
-                $exp = shift @Ahexpanse;
-                $li  = sgenalign( $Alfinn[$i]{EXL} ) . "\n";
-            }
-            else {
-                $exp = 1;
-                $li  = sgenalign( $Alfinn[$i] ) . "\n";
-            }
+            $li  = sgenalign( $Alfinn[$i][0], $Alfinn[$i][1] ) . "\n";
 
             if ( $exp > 1 ) {
                 foreach my $i ( 1 .. $exp ) {
@@ -586,8 +655,8 @@ sub genarline {
     else {
         foreach my $i ( 0 .. ( $lmax - 1 ) ) {
 
-            if ( $Alfinn[$i] ) {
-                $li = sgenalign( $Alfinn[$i] ) . "\n";
+            if ( $Alfinn[$i][0] ) {
+                $li = sgenalign( $Alfinn[$i][0], $Alfinn[$i][1] ) . "\n";
             }
             else {
                 $li = "\n";
@@ -650,7 +719,7 @@ sub genarline {
 #####################################################
 
 sub sgenalign {
-    my ($li) = @_;
+    my ($li, $lilen) = @_;
     my $align = $opts{'Align'};
 
     # my $fixedCol = $opts{'fixedCol'};
@@ -661,7 +730,7 @@ sub sgenalign {
         return $li;
     }
 
-    my $lilen = length( delcolors($li) );
+    #my $lilen = length( delcolors($li) );
 
     # if ( $fixedCol and ($fixedCol > $lilen)) {
     # $li = str_w_spaces( $li, ($fixedCol), 1);
@@ -675,11 +744,28 @@ sub sgenalign {
 
     if ( $lentoWFill > 0 ) {
         $lentoWFilldiv2 = int( $lentoWFill / 2 );
-        given ($align) {
-            when ('left')  { $li = $li . ' ' x $lentoWFill; }
-            when ('right') { $li = ' ' x $lentoWFill . $li; }
-            when ('center') {
-                $modulo = $lentoWFill % 2;
+        # given ($align) {
+            # when ('left')  { $li = $li . ' ' x $lentoWFill; }
+            # when ('right') { $li = ' ' x $lentoWFill . $li; }
+            # when ('center') {
+                # $modulo = $lentoWFill % 2;
+                # if ( $modulo > 0 ) {
+                    # $li =
+                        # ' ' x $lentoWFilldiv2
+                      # . $li
+                      # . ' ' x ( $lentoWFilldiv2 + 1 );
+                # }
+                # else {
+                    # $li = ' ' x $lentoWFilldiv2 . $li . ' ' x $lentoWFilldiv2;
+                # }
+            # }
+        # }
+
+		for ($align) {
+			if ($align eq 'left') 	{ $li = $li . ' ' x $lentoWFill; last; }
+			if ($align eq 'right') 	{ $li = ' ' x $lentoWFill . $li; last; }
+			if ($align eq 'center') {
+				$modulo = $lentoWFill % 2;
                 if ( $modulo > 0 ) {
                     $li =
                         ' ' x $lentoWFilldiv2
@@ -689,8 +775,11 @@ sub sgenalign {
                 else {
                     $li = ' ' x $lentoWFilldiv2 . $li . ' ' x $lentoWFilldiv2;
                 }
-            }
-        }
+			last;
+			}
+		}
+
+
     }
     return $li;
 }
@@ -732,7 +821,8 @@ sub sgenvars {
 #####################################################
 sub sgenfill {
     my ( $li, $Fitems_aref ) = @_;
-    my $lilen = length( delcolors($li) );
+    # my $lilen = length( delcolors($li) );
+    my $lilen = $GTmpLen;
     my $lentoFill;
     my $Fmodulo;
     my $Fstrlen;
