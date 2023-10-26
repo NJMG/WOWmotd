@@ -528,8 +528,7 @@ sub checkwarnlenght {
         $linb = $i + 1;
 
         # $li = "Error: Line bigger than terminal size";
-        die
-"Error: in Line $linb ($GTmpLen char) bigger than terminal size: $wchar !";
+        die "Error: in Line $linb ($GTmpLen char) bigger than terminal size: $wchar !";
     }
 
     return $li;
